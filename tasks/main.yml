@@ -1,0 +1,126 @@
+---
+  - name: Add aptly repository key
+    become: True
+    apt_key:
+      keyserver: pool.sks-keyservers.net
+      id: ED75B5A4483DA07C
+
+  - name: Add aptly repository
+    become: True
+    apt_repository:
+      repo: 'deb http://repo.aptly.info/ squeeze main'
+    register: repochanged
+
+  - name: Explicitly refresh APT cache
+    become: True
+    when: repochanged.changed
+    apt:
+      update_cache: yes
+
+  - name: Install aptly and dependencies
+    become: True
+    apt: name={{ item }} state=present update_cache=yes cache_valid_time=1800
+    with_items:
+      - aptly
+      - gnupg1
+      - gpgv1
+
+  - name: Create repo group
+    become: True
+    group:
+      name: "{{ aptly_repo_group }}"
+      state: present
+
+  - name: Create repo user
+    become: True
+    user:
+      name: "{{ aptly_repo_user }}"
+      state: present
+      group: "{{ aptly_repo_group }}"
+      home: "{{ aptly_repo_user_home }}"
+      system: yes
+      shell: "/usr/sbin/nologin"
+
+  - name: Configure aptly
+    become: True
+    template:
+      src: aptly.conf.j2
+      dest: "{{ aptly_repo_user_home }}/.aptly.conf"
+      owner: "{{ aptly_repo_user }}"
+      group: "{{ aptly_repo_group }}"
+      mode: 0640
+
+  - name: Create aptly repos
+    become: True
+    become_user: "{{ aptly_repo_user }}"
+    command:
+      aptly repo create {{ item }}
+    with_items:
+      - "{{ aptly_repos }}"
+    changed_when: False
+    failed_when: False
+
+  - name: Ensure that the GPG directory exists
+    become: True
+    file:
+      path: "{{ aptly_repo_user_home }}/.gnupg"
+      state: directory
+      mode: 0700
+      owner: "{{ aptly_repo_user }}"
+      group: "{{ aptly_repo_group }}"
+
+  - name: Upload keyring
+    when: not aptly_gpg_generate_key
+    become: True
+    copy:
+      src: "{{ item }}"
+      dest: "{{ aptly_repo_user_home }}/.gnupg/{{ item }}"
+      owner: "{{ aptly_repo_user }}"
+      group: "{{ aptly_repo_group }}"
+      mode: 0600
+    with_items:
+      - pubring.gpg
+      - secring.gpg
+
+  - name: Upload key generation batch script
+    when: aptly_gpg_generate_key
+    become: True
+    template:
+      src: genkey.j2
+      dest: "{{ aptly_repo_user_home }}/.gnupg/aptly-genkey-cmds"
+      owner: "{{ aptly_repo_user }}"
+      group: "{{ aptly_repo_group }}"
+      mode: 0600
+
+  - name: Generate key
+    when: aptly_gpg_generate_key
+    become: True
+    become_user: "{{ aptly_repo_user }}"
+    command: gpg1 --batch --gen-key "{{ aptly_repo_user_home }}/.gnupg/aptly-genkey-cmds"
+    args:
+      creates: "{{ aptly_repo_user_home }}/.gnupg/secring.gpg"
+
+  - name: Ensure that aptly can write to webroot
+    become: True
+    file:
+      path: "{{ aptly_webroot_path }}"
+      owner: "{{ aptly_repo_user }}"
+      group: "{{ aptly_www_group }}"
+      mode: 0775
+      state: directory
+
+  - name: Load GPG key id
+    become: True
+    become_user: "{{ aptly_repo_user }}"
+    shell: |
+      gpg1 -K --with-fingerprint | grep fingerprint | awk -F= '{print $2}' | sed 's/ //g'
+    register: keyid
+    changed_when: False
+
+  - name: Export aptly repo key
+    become: True
+    become_user: "{{ aptly_repo_user }}"
+    shell: |
+      gpg1 --armor --export "{{ keyid.stdout }}" > "{{ aptly_webroot_path }}/repo.key"
+    args:
+      creates: "{{ aptly_webroot_path }}/repo.key"

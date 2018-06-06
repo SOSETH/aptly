@@ -1,0 +1,27 @@
+{
+  "rootDir": "/home/repo/.aptly",
+  "downloadConcurrency": 4,
+  "downloadSpeedLimit": 0,
+  "architectures": [],
+  "dependencyFollowSuggests": false,
+  "dependencyFollowRecommends": false,
+  "dependencyFollowAllVariants": false,
+  "dependencyFollowSource": false,
+  "dependencyVerboseResolve": false,
+  "gpgDisableSign": false,
+  "gpgDisableVerify": false,
+  "gpgProvider": "gpg",
+  "downloadSourcePackages": false,
+  "skipLegacyPool": true,
+  "ppaDistributorID": "ubuntu",
+  "ppaCodename": "",
+  "skipContentsPublishing": false,
+  "FileSystemPublishEndpoints": {
+    "default": {
+      "rootDir": "{{ aptly_webroot_path }}",
+      "linkMethod": "hardlink"
+    }
+  },
+  "S3PublishEndpoints": {},
+  "SwiftPublishEndpoints": {}
+}

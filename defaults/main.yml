@@ -1,0 +1,8 @@
+---
+aptly_repo_user: repo
+aptly_repo_group: repo
+aptly_repo_user_home: "/home/{{ aptly_repo_user }}"
+aptly_gpg_generate_key: True
+aptly_repos: []
+aptly_webroot_path: /var/www/html/aptly
+aptly_www_group: www-data
