@@ -19,11 +19,14 @@
 
   - name: Install aptly and dependencies
     become: True
-    apt: name={{ item }} state=present update_cache=yes cache_valid_time=1800
-    with_items:
-      - aptly
-      - gnupg1
-      - gpgv1
+    apt:
+      name:
+        - aptly
+        - gnupg1
+        - gpgv1
+      state: present
+      update_cache: yes
+      cache_valid_time: 1800
 
   - name: Create repo group
     become: True
@@ -83,7 +86,7 @@
       - secring.gpg
 
   - name: Upload key generation batch script
-    when: aptly_gpg_generate_key
+    when: aptly_gpg_generate_key|bool
     become: True
     template:
       src: genkey.j2
@@ -93,7 +96,7 @@
       mode: 0600
 
   - name: Generate key
-    when: aptly_gpg_generate_key
+    when: aptly_gpg_generate_key|bool
     become: True
     become_user: "{{ aptly_repo_user }}"
     command: gpg1 --batch --gen-key "{{ aptly_repo_user_home }}/.gnupg/aptly-genkey-cmds"
@@ -105,8 +108,8 @@
     file:
       path: "{{ aptly_webroot_path }}"
       owner: "{{ aptly_repo_user }}"
-      group: "{{ aptly_www_group }}"
-      mode: 0775
+      group: "{{ aptly_repo_group }}"
+      mode: 0755
       state: directory
 
   - name: Load GPG key id
@@ -116,11 +119,21 @@
       gpg1 -K --with-fingerprint | grep fingerprint | awk -F= '{print $2}' | sed 's/ //g'
     register: keyid
     changed_when: False
+    check_mode: False
 
   - name: Export aptly repo key
     become: True
     become_user: "{{ aptly_repo_user }}"
     shell: |
-      gpg1 --armor --export "{{ keyid.stdout }}" > "{{ aptly_webroot_path }}/repo.key"
+      gpg1 --armor --export "{{ keyid.stdout }}" > "{{ aptly_webroot_path }}/{{ aptly_gpg_key_name }}.asc"
     args:
-      creates: "{{ aptly_webroot_path }}/repo.key"
+      creates: "{{ aptly_webroot_path }}/{{ aptly_gpg_key_name }}.asc"
+
+  - name: Upload nginx config
+    become: True
+    template:
+        src: etc_nginx_base.d_base.conf.j2
+        dest: /etc/nginx/base.d/base.conf
+    notify: restart nginx
+
+  - meta: flush_handlers

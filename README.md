@@ -26,6 +26,6 @@ can to update the repostitory using
 | `aptly_repo_user_home` | `/home/repo` | Where is the repo users' home supposed to be? |
 | `aptly_repo_group` | `repo` | How is the default group of the repo user supposed to be called? |
 | `aptly_gpg_generate_key` | `True` | Whether to have this role generate a passwordless RSA key |
+| `aptly_gpg_key_name` | `repo` | Name under which the GPG key should be stored in the webroot ({{ name }}.asc) |
 | `aptly_repos` | `[]` | An array of repositories to create |
 | `aptly_webroot_path` | `/var/www/html/aptly` | Where to put the finished repo |
-| `aptly_www_group` | `www-data` | Which group do web files normally belong to? |
